@@ -2,12 +2,14 @@ import createError from 'http-errors'
 import express, { Request, Response, NextFunction } from 'express'
 import path from 'path'
 import cookieParser from 'cookie-parser'
-import logger from 'morgan'
 
 import { fileURLToPath } from 'url'
 
 import indexRouter from './routes/index.js'
 import usersRouter from './routes/users.js'
+
+import morganMiddleware from './middlewares/morgan.js'
+import logger from './configs/winton.js'
 
 const app = express()
 
@@ -18,7 +20,6 @@ const __dirname = path.dirname(filename)
 app.set('views', path.join(__dirname, '../src', 'views'))
 app.set('view engine', 'jade')
 
-app.use(logger('dev'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser())
@@ -27,20 +28,31 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.use('/', indexRouter)
 app.use('/users', usersRouter)
 
+app.use(morganMiddleware)
+
 // catch 404 and forward to error handler
-app.use(function (req: Request, res: Response, next: NextFunction) {
+app.use((req: Request, res: Response, next: NextFunction) => {
   next(createError(404))
 })
 
 // error handler
-app.use(function (err: any, req: Request, res: Response, next: NextFunction) {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   // set locals, only providing error in development
-  res.locals.message = err.message
-  res.locals.error = req.app.get('env') === 'development' ? err : {}
+  const status: number = err.status || 500
+  const message: string = err.message || 'Something went wrong!'
+  // res.locals.error = req.app.get('env') === 'development' ? err : {}
+
+  logger.error(`${status} due to ${message}`)
 
   // render the error page
-  res.status(err.status || 500)
-  res.render('error')
+  // res.status(err.status || 500)
+  // res.render('error')
+
+  res.status(status).json({
+    success: false,
+    status,
+    message,
+  })
 })
 
 export default app
